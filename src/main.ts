@@ -6,8 +6,8 @@ import * as d3 from 'd3';
 import {
   RANDOM_NUMBER,
   COLOR_ARRAY,
-  DISTANCE_SIZE,
   SIDE_LENGTH,
+  DISTANCE_SIZE,
 } from './constants/constants';
 
 import { PolygonData } from './utils/interface';
@@ -99,48 +99,53 @@ function createPolygons(): void {
   }
 }
 
-/**
- * Optimized floating animation for polygons
- */
+// * Optimized floating animation for polygons
+// Scales the entire grid of polygons by a factor of 2 in both directions,
+//   effectively expanding the plane by 4 times while keeping relative positions.
 function startAnimation(): void {
-  createPolygons(); // Create polygons before animation
+  createPolygons(); // Generate polygons before animation
 
   const timeline = gsap.timeline({
     onComplete: () => {
-      gsap.delayedCall(1, startAnimation); // More efficient than setTimeout
+      gsap.delayedCall(0.5, startAnimation);
     },
   });
 
-  polygons.forEach(({ group, centerX, centerY }) => {
-    const dx: number = centerX - SIDE_LENGTH / 2;
-    const dy: number = centerY - SIDE_LENGTH / 2;
-    const moveX: number = dx * DISTANCE_SIZE;
-    const moveY: number = dy * DISTANCE_SIZE;
+  const centerX = SIDE_LENGTH / 2;
+  const centerY = SIDE_LENGTH / 2;
 
-    gsap.set(group, { willChange: 'transform' }); // Hint for performance
+  polygons.forEach(
+    ({ group, centerX: polyX, centerY: polyY }) => {
+      gsap.set(group, { willChange: 'transform' });
 
-    timeline.to(
-      group,
-      {
-        duration: 2,
-        x: moveX, // Using x instead of transform for GPU acceleration
-        y: moveY,
-        ease: 'power2.out',
-      },
-      0,
-    );
-  });
+      const scaledX =
+        centerX + (polyX - centerX) * DISTANCE_SIZE;
+      const scaledY =
+        centerY + (polyY - centerY) * DISTANCE_SIZE;
 
-  // Return polygons to their original position
+      timeline.to(
+        group,
+        {
+          duration: 1.5,
+          x: scaledX - polyX,
+          y: scaledY - polyY,
+          ease: 'slow(0.7,0.7,false)',
+        },
+        0,
+      );
+    },
+  );
+
+  // Return polygons to original positions smoothly
   timeline.to(
     polygons.map((p) => p.group),
     {
-      duration: 2,
+      duration: 1.5,
       x: 0,
       y: 0,
-      ease: 'power2.in',
+      ease: 'slow(0.7,0.7,false)',
     },
-    '+=1',
   );
 }
+
 startAnimation();
