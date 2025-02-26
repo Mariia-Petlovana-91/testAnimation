@@ -1,113 +1,91 @@
 import './style.css';
-
 import gsap from 'gsap';
-import * as d3 from 'd3';
-
 import {
-  RANDOM_NUMBER,
-  COLOR_ARRAY,
+  PolygonGeom,
+  PolygonData,
+} from './utils/interface';
+import { subdivideSquareWithLines } from './utils/geometryHelpers';
+import {
   SIDE_LENGTH,
   DISTANCE_SIZE,
+  COLOR_ARRAY,
 } from './constants/constants';
+import { getRandomColor } from './utils/generator';
 
-import { PolygonData } from './utils/interface';
-import {
-  generateRandomPoints,
-  getRandomColor,
-  getRandomNumber,
-} from './utils/generator';
-
-// * Get the SVG element------------------------------------------------------
-// Select the SVG canvas where the polygons will be drawn.
-const svgCanvas =
-  document.querySelector<SVGSVGElement>('#svgCanvas');
-if (!svgCanvas) {
-  throw new Error('SVG element not found!');
-}
-
-// * Creating an array of future polygons-------------------------------------
-// This array will store polygon data including their SVG elements and coordinates.
-let polygons: PolygonData[] = [];
-
-// * The function that creates polygons based on the Voronoi diagram----------
-// This function generates polygons using D3's Delaunay triangulation and Voronoi diagram.
-function createPolygons(): void {
-  if (!svgCanvas) return;
-
-  // Clear the existing polygons before creating new ones
+/**
+ * drawPolygons function:
+ * 1) Clears <svg>.
+ * 2) Based on the array of geometric polygons (PolygonGeom[]) creates <g> + <polygon>.
+ * 3) Calculates the center (x,y) of each polygon.
+ * 4) Returns a PolygonData[] array (so we can animate).
+ */
+export function drawPolygons(
+  svgCanvas: SVGSVGElement,
+  polygonsGeom: PolygonGeom[],
+): PolygonData[] {
   svgCanvas.innerHTML = '';
-  polygons = [];
 
-  // Generate a set of random points within the defined area
-  const points: [number, number][] = generateRandomPoints(
-    getRandomNumber(RANDOM_NUMBER.min, RANDOM_NUMBER.max),
-    SIDE_LENGTH,
-  );
+  const result: PolygonData[] = [];
 
-  // Generate a Delaunay triangulation and a Voronoi diagram from the points
-  const delaunay = d3.Delaunay.from(points);
-  const voronoi = delaunay.voronoi([
-    0,
-    0,
-    SIDE_LENGTH,
-    SIDE_LENGTH,
-  ]);
-
-  // Iterate through each point and create a polygon
-  for (let i = 0; i < points.length; i++) {
-    const cell: [number, number][] | undefined =
-      voronoi.cellPolygon(i);
-    if (!cell) continue;
-
-    const centerX: number = points[i][0];
-    const centerY: number = points[i][1];
-
-    // * Create an SVG group element <g> to contain the polygon
-    const group: SVGGElement = document.createElementNS(
+  for (const geom of polygonsGeom) {
+    const group = document.createElementNS(
       'http://www.w3.org/2000/svg',
       'g',
     );
-    group.setAttribute('transform', `translate(0,0)`);
     svgCanvas.appendChild(group);
 
-    // * Create the actual polygon element <polygon>
-    const polygon: SVGPolygonElement =
-      document.createElementNS(
-        'http://www.w3.org/2000/svg',
-        'polygon',
-      );
-    polygon.setAttribute(
-      'points',
-      cell.map((p) => `${p[0]},${p[1]}`).join(' '),
+    const polygonEl = document.createElementNS(
+      'http://www.w3.org/2000/svg',
+      'polygon',
     );
+    const pointsStr = geom
+      .map((p) => `${p.x},${p.y}`)
+      .join(' ');
+    polygonEl.setAttribute('points', pointsStr);
 
-    // Assign a random color from the predefined color array
-    polygon.setAttribute(
+    polygonEl.setAttribute(
       'fill',
       getRandomColor(COLOR_ARRAY),
     );
+    group.appendChild(polygonEl);
 
-    // Append the polygon to its group
-    group.appendChild(polygon);
+    let sx = 0,
+      sy = 0;
+    for (const p of geom) {
+      sx += p.x;
+      sy += p.y;
+    }
+    const cx = sx / geom.length;
+    const cy = sy / geom.length;
 
-    // Store polygon data for animation
-    polygons.push({
+    result.push({
       group,
-      centerX,
-      centerY,
+      centerX: cx,
+      centerY: cy,
     });
   }
+
+  return result;
 }
 
-// * Optimized floating animation for polygons
-// Scales the entire grid of polygons by a factor of 2 in both directions,
-//   effectively expanding the plane by 4 times while keeping relative positions.
-function startAnimation(): void {
-  createPolygons(); // Generate polygons before animation
-
+/**
+ * function createAnimation:
+ * 1) Subdivides a square (subdivideSquareWithLines).
+ * 2) Calls drawPolygons(..), receiving an array of PolygonData[].
+ * 3) Creates a GSAP timeline, "explodes" polygons, then returns.
+ * 4) At the end of the animation, it causes itself again (after 1s).
+ */
+export function createAnimation(
+  svgCanvas: SVGSVGElement,
+): void {
+  const polygonsGeom = subdivideSquareWithLines();
+  const polygons: PolygonData[] = drawPolygons(
+    svgCanvas,
+    polygonsGeom,
+  );
   const timeline = gsap.timeline({
     onComplete: () => {
-      gsap.delayedCall(1, startAnimation);
+      gsap.delayedCall(1, () => createAnimation(svgCanvas));
     },
   });
 
@@ -115,37 +93,51 @@ function startAnimation(): void {
   const centerY = SIDE_LENGTH / 2;
 
   polygons.forEach(
-    ({ group, centerX: polyX, centerY: polyY }) => {
+    ({ group, centerX: px, centerY: py }) => {
       gsap.set(group, { willChange: 'transform' });
 
       const scaledX =
-        centerX + (polyX - centerX) * DISTANCE_SIZE;
+        centerX + (px - centerX) * DISTANCE_SIZE;
       const scaledY =
-        centerY + (polyY - centerY) * DISTANCE_SIZE;
+        centerY + (py - centerY) * DISTANCE_SIZE;
 
       timeline.to(
         group,
         {
           duration: 1.5,
-          x: scaledX - polyX,
-          y: scaledY - polyY,
-          ease: 'expoScale(0.5,7,none)',
+          x: scaledX - px,
+          y: scaledY - py,
+          ease: 'expoScale(0.5, 7, none)',
         },
         0,
       );
     },
   );
 
-  // Return polygons to original positions smoothly
   timeline.to(
     polygons.map((p) => p.group),
     {
       duration: 1.5,
       x: 0,
       y: 0,
-      ease: 'slow(0.7,0.7,false)',
+      ease: 'slow(0.7, 0.7, false)',
     },
   );
 }
 
-startAnimation();
+/**
+ * 1).We get an element in which we draw polygons
+ * 2) We check whether such an element really exists.
+ * 3) We pass it to the call of the generation function, which in this element draws the animation.
+ */
+const isSvg = document.getElementById('svgCanvas');
+
+if (!isSvg) {
+  throw new Error("Element with id='svgCanvas' not found!");
+}
+
+if (!(isSvg instanceof SVGSVGElement)) {
+  throw new Error('Element is not an SVGSVGElement!');
+}
+
+createAnimation(isSvg);

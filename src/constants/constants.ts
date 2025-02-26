@@ -3,8 +3,8 @@ export const RANDOM_NUMBER: {
   min: number;
   max: number;
 } = {
-  min: 30,
-  max: 100,
+  min: 20,
+  max: 50,
 };
 
 // * An array of colors for the polygon------------------------------

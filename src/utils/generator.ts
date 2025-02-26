@@ -3,15 +3,8 @@ export function generateRandomPoints(
   numPoints: number,
   size: number,
 ): [number, number][] {
-  let points: [
-    number,
-    number,
-  ][] = [];
-  for (
-    let i = 0;
-    i < numPoints;
-    i++
-  ) {
+  let points: [number, number][] = [];
+  for (let i = 0; i < numPoints; i++) {
     points.push([
       Math.random() * size,
       Math.random() * size,
@@ -21,27 +14,16 @@ export function generateRandomPoints(
 }
 
 // * Generate a random number in the range for the polygon------------------------
-export function getRandomNumber(
+export function generateRandomNumber(
   min: number,
   max: number,
 ) {
-  return Math.floor(
-    Math.random() *
-      (max - min) +
-      min,
-  );
+  return Math.floor(Math.random() * (max - min) + min);
 }
 
 // * Generate a random color for the polygon-------------------------------------
-export function getRandomColor(
-  colors: string[],
-): string {
+export function getRandomColor(colors: string[]): string {
   const randomColor =
-    colors[
-      Math.floor(
-        Math.random() *
-          colors.length,
-      )
-    ];
+    colors[Math.floor(Math.random() * colors.length)];
   return `${randomColor}`;
 }
