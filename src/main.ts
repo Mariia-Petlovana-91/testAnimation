@@ -107,7 +107,7 @@ function startAnimation(): void {
 
   const timeline = gsap.timeline({
     onComplete: () => {
-      gsap.delayedCall(0.5, startAnimation);
+      gsap.delayedCall(1, startAnimation);
     },
   });
 
@@ -129,7 +129,7 @@ function startAnimation(): void {
           duration: 1.5,
           x: scaledX - polyX,
           y: scaledY - polyY,
-          ease: 'slow(0.7,0.7,false)',
+          ease: 'expoScale(0.5,7,none)',
         },
         0,
       );

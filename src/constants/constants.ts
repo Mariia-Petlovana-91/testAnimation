@@ -19,7 +19,7 @@ export const COLOR_ARRAY: string[] = [
 ];
 
 // * Size for the square----------------------------------------------
-export const SIDE_LENGTH: number = 150;
+export const SIDE_LENGTH: number = 200;
 
 // * How many times the square expansion simulation is increased------
 export const DISTANCE_SIZE: number = 2;
